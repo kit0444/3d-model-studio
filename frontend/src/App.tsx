@@ -60,28 +60,28 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gray-800">
       {/* Header */}
-      <header className="bg-black/20 backdrop-blur-sm border-b border-white/10">
+      <header className="bg-gray-900 border-b border-gray-700 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
                 <Wand2 className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">AI 3D Generator</h1>
-                <p className="text-sm text-gray-300">智能3D模型生成平台</p>
+                <p className="text-sm text-gray-400">智能3D模型生成平台</p>
               </div>
             </div>
             
-            <nav className="flex space-x-1">
+            <nav className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
               <button
                 onClick={() => setActiveTab('generate')}
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all duration-200 ${
                   activeTab === 'generate'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 <Wand2 size={18} />
@@ -89,10 +89,10 @@ function App() {
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all duration-200 ${
                   activeTab === 'history'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 <History size={18} />
@@ -100,10 +100,10 @@ function App() {
               </button>
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all duration-200 ${
                   activeTab === 'stats'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
                 }`}
               >
                 <BarChart3 size={18} />
