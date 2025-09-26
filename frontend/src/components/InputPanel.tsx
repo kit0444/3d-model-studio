@@ -115,7 +115,7 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl p-6 border border-gray-700 shadow-lg">
+    <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg h-full flex flex-col">{/* 统一背景色和高度 */}
       {/* 标题 */}
       <div className="mb-6">
         <h2 className="text-xl font-bold text-white mb-2">创建3D模型</h2>
@@ -260,27 +260,29 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
         </div>
 
         {/* 生成按钮 */}
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)}
-          className={`w-full mt-6 py-3 px-6 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all duration-200 ${
-            isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
-          }`}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>生成中...</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5" />
-              <span>开始生成</span>
-            </>
-          )}
-        </button>
+        <div className="mt-auto">{/* 使用mt-auto将按钮推到底部 */}
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)}
+            className={`w-full py-3 px-6 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all duration-200 ${
+              isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)
+                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>生成中...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                <span>开始生成</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )

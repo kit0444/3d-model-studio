@@ -18,14 +18,14 @@ interface GeneratedModel {
 function App() {
   const [activeTab, setActiveTab] = useState('generate')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [currentModel, setCurrentModel] = useState<string | undefined>()
+  const [currentModel, setCurrentModel] = useState<GeneratedModel | null>(null)
   const [models, setModels] = useState<GeneratedModel[]>([
     {
       id: '1',
       inputContent: '一只可爱的小猫咪，坐在草地上',
       inputType: 'text',
       createdAt: '2024-01-15T14:30:00Z',
-      modelUrl: '/models/cat.obj',
+      modelUrl: '/api/models/cube.glb',
       previewUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop',
       qualityScore: 0.92
     },
@@ -34,7 +34,7 @@ function App() {
       inputContent: '现代风格的办公椅',
       inputType: 'text',
       createdAt: '2024-01-15T13:15:00Z',
-      modelUrl: '/models/chair.obj',
+      modelUrl: '/api/models/pyramid.glb',
       previewUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop',
       qualityScore: 0.88
     },
@@ -43,7 +43,7 @@ function App() {
       inputContent: '科幻风格的宇宙飞船',
       inputType: 'image',
       createdAt: '2024-01-15T12:00:00Z',
-      modelUrl: '/models/spaceship.obj',
+      modelUrl: '/api/models/sphere.glb',
       previewUrl: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=200&h=200&fit=crop',
       qualityScore: 0.95
     }
@@ -51,11 +51,11 @@ function App() {
 
   const handleModelGenerated = (model: GeneratedModel) => {
     setModels(prev => [model, ...prev])
-    setCurrentModel(model.modelUrl)
+    setCurrentModel(model)
   }
 
   const handleModelSelect = (model: GeneratedModel) => {
-    setCurrentModel(model.modelUrl)
+    setCurrentModel(model)
     setActiveTab('generate')
   }
 
@@ -115,11 +115,11 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex h-[calc(100vh-120px)]">
         {activeTab === 'generate' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-200px)]">
-            {/* Input Panel */}
-            <div className="space-y-6">
+          <>
+            {/* Left Panel - Input (30% width) */}
+            <div className="w-[30%] min-w-[350px] bg-gray-900 border-r border-gray-700 p-6 overflow-y-auto">
               <InputPanel 
                 onModelGenerated={handleModelGenerated} 
                 isGenerating={isGenerating} 
@@ -127,19 +127,23 @@ function App() {
               />
             </div>
             
-            {/* Model Viewer */}
-            <div className="h-full">
-              <ModelViewer modelUrl={currentModel} isLoading={isGenerating} />
+            {/* Right Panel - Model Viewer (70% width) */}
+            <div className="flex-1 bg-gray-900 border-r border-gray-700 p-6 overflow-y-auto">
+              <ModelViewer model={currentModel} isLoading={isGenerating} />
             </div>
-          </div>
+          </>
         )}
 
         {activeTab === 'history' && (
-          <HistoryPanel models={models} onModelSelect={handleModelSelect} />
+          <div className="w-full p-6 overflow-y-auto">
+            <HistoryPanel models={models} onModelSelect={handleModelSelect} />
+          </div>
         )}
 
         {activeTab === 'stats' && (
-          <StatsPanel models={models} />
+          <div className="w-full p-6 overflow-y-auto">
+            <StatsPanel models={models} />
+          </div>
         )}
       </main>
     </div>

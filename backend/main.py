@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -9,6 +10,7 @@ import json
 import hashlib
 import redis
 import asyncio
+import random
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -107,12 +109,24 @@ async def simulate_3d_generation(input_content: str, input_type: str) -> dict:
     model_id = hashlib.md5(f"{input_content}:{datetime.now().isoformat()}".encode()).hexdigest()[:12]
     
     # 模拟质量评分
-    import random
     quality_score = round(random.uniform(0.7, 0.95), 2)
+    
+    # 从现有模型文件中随机选择一个（支持OBJ和GLB格式）
+    models_dir = os.path.join(os.path.dirname(__file__), "models")
+    available_models = []
+    if os.path.exists(models_dir):
+        available_models = [f for f in os.listdir(models_dir) if f.endswith(('.obj', '.glb'))]
+        print(available_models)
+    
+    if available_models:
+        selected_model = random.choice(available_models)
+        model_url = f"/api/models/{selected_model}"
+    else:
+        model_url = f"/api/models/{model_id}.glb"  # 默认使用GLB格式
     
     return {
         "model_id": model_id,
-        "model_url": f"/api/models/{model_id}.obj",
+        "model_url": model_url,
         "preview_url": f"/api/previews/{model_id}.jpg",
         "quality_score": quality_score
     }
@@ -241,10 +255,63 @@ async def get_stats():
         "api_calls_saved": sum(1 for m in model_history if "缓存" in m.get("message", ""))
     }
 
+@app.get("/api/models")
+async def list_models():
+    """获取可用的模型文件列表"""
+    models_dir = os.path.join(os.path.dirname(__file__), "models")
+    if not os.path.exists(models_dir):
+        return {"models": []}
+    
+    models = []
+    for filename in os.listdir(models_dir):
+        if filename.endswith(('.obj', '.glb')):
+            file_path = os.path.join(models_dir, filename)
+            file_size = os.path.getsize(file_path)
+            # 获取文件扩展名和名称
+            name_without_ext = filename.rsplit('.', 1)[0]
+            file_ext = filename.rsplit('.', 1)[1]
+            models.append({
+                "filename": filename,
+                "name": name_without_ext.title(),
+                "size": file_size,
+                "format": file_ext.upper(),
+                "url": f"/api/models/{filename}"
+            })
+    
+    return {"models": models}
+
+@app.get("/api/models/{filename}")
+async def get_model_file(filename: str):
+    """获取指定的模型文件"""
+    models_dir = os.path.join(os.path.dirname(__file__), "models")
+    file_path = os.path.join(models_dir, filename)
+    
+    if not os.path.exists(file_path) or not filename.endswith(('.obj', '.glb')):
+        raise HTTPException(status_code=404, detail="模型文件未找到")
+    
+    # 根据文件类型设置正确的媒体类型
+    media_type = 'application/octet-stream'
+    if filename.endswith('.glb'):
+        media_type = 'model/gltf-binary'
+    elif filename.endswith('.obj'):
+        media_type = 'text/plain'
+    
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        filename=filename,
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
+
 if __name__ == "__main__":
     # 从环境变量获取配置
     host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", "8000"))
     reload = os.getenv("API_RELOAD", "true").lower() == "true"
     
-    uvicorn.run(app, host=host, port=port, reload=reload)
+    if reload:
+        # 当启用reload时，需要传递模块路径而不是app对象
+        uvicorn.run("main:app", host=host, port=port, reload=reload)
+    else:
+        # 当不启用reload时，可以直接传递app对象
+        uvicorn.run(app, host=host, port=port, reload=reload)
