@@ -10,6 +10,10 @@ import hashlib
 import redis
 import asyncio
 from datetime import datetime
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -27,14 +31,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Redis连接配置
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
 # Redis连接
 try:
-    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_client = redis.Redis(
+        host=REDIS_HOST, 
+        port=REDIS_PORT, 
+        db=REDIS_DB, 
+        password=REDIS_PASSWORD if REDIS_PASSWORD else None,
+        decode_responses=True
+    )
     redis_client.ping()
-    print("✅ Redis连接成功")
-except:
+    print(f"✅ Redis连接成功 ({REDIS_HOST}:{REDIS_PORT})")
+except Exception as e:
     redis_client = None
-    print("⚠️ Redis连接失败，将使用内存缓存")
+    print(f"⚠️ Redis连接失败: {e}，将使用内存缓存")
 
 # 数据模型
 class TextGenerateRequest(BaseModel):
@@ -226,4 +242,9 @@ async def get_stats():
     }
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    # 从环境变量获取配置
+    host = os.getenv("API_HOST", "0.0.0.0")
+    port = int(os.getenv("API_PORT", "8000"))
+    reload = os.getenv("API_RELOAD", "true").lower() == "true"
+    
+    uvicorn.run(app, host=host, port=port, reload=reload)
