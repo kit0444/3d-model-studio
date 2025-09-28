@@ -151,14 +151,16 @@ const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({ modelUrl, className
     setError('')
 
     try {
-      const fileExtension = url.split('.').pop()?.toLowerCase()
+      // 从URL中提取文件扩展名，处理查询参数
+      const urlWithoutQuery = url.split('?')[0] // 移除查询参数
+      const fileExtension = urlWithoutQuery.split('.').pop()?.toLowerCase()
       
       if (fileExtension === 'glb' || fileExtension === 'gltf') {
         await loadGLBModel(url)
       } else if (fileExtension === 'obj') {
         await loadOBJModel(url)
       } else {
-        throw new Error('不支持的文件格式')
+        throw new Error(`不支持的文件格式: ${fileExtension || '未知'}`)
       }
       
     } catch (err) {
@@ -206,8 +208,10 @@ const ThreeModelViewer: React.FC<ThreeModelViewerProps> = ({ modelUrl, className
           resolve()
         },
         (progress) => {
-          // 可以在这里处理加载进度
-          console.log('Loading progress:', progress)
+          // 可选：在开发环境中显示加载进度
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Loading progress:', progress)
+          }
         },
         (error) => {
           reject(new Error('GLB模型加载失败: ' + error.message))

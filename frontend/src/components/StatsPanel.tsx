@@ -8,19 +8,19 @@ interface StatsPanelProps {
 export default function StatsPanel({ models }: StatsPanelProps) {
   // 计算统计数据
   const totalModels = models.length
-  const avgQuality = models.length > 0 
-    ? models.reduce((sum, model) => sum + (model.qualityScore || 0), 0) / models.length 
+  const averageQuality = models.length > 0 
+    ? models.reduce((sum, model) => sum + ((model.qualityScore || model.quality_score) || 0), 0) / models.length
     : 0
 
-  const textModels = models.filter(m => m.inputType === 'text').length
-  const imageModels = models.filter(m => m.inputType === 'image').length
+  const textModels = models.filter(m => (m.inputType || m.input_type) === 'text').length
+  const imageModels = models.filter(m => (m.inputType || m.input_type) === 'image').length
 
   // 质量分布数据
   const qualityDistribution = [
-    { name: '优秀 (90-100%)', value: models.filter(m => (m.qualityScore || 0) >= 0.9).length, color: '#10b981' },
-    { name: '良好 (80-89%)', value: models.filter(m => (m.qualityScore || 0) >= 0.8 && (m.qualityScore || 0) < 0.9).length, color: '#3b82f6' },
-    { name: '一般 (70-79%)', value: models.filter(m => (m.qualityScore || 0) >= 0.7 && (m.qualityScore || 0) < 0.8).length, color: '#f59e0b' },
-    { name: '较差 (<70%)', value: models.filter(m => (m.qualityScore || 0) < 0.7).length, color: '#ef4444' },
+    { name: '优秀 (90-100%)', value: models.filter(m => ((m.qualityScore || m.quality_score) || 0) >= 0.9).length, color: '#10b981' },
+    { name: '良好 (80-89%)', value: models.filter(m => ((m.qualityScore || m.quality_score) || 0) >= 0.8 && ((m.qualityScore || m.quality_score) || 0) < 0.9).length, color: '#3b82f6' },
+    { name: '一般 (70-79%)', value: models.filter(m => ((m.qualityScore || m.quality_score) || 0) >= 0.7 && ((m.qualityScore || m.quality_score) || 0) < 0.8).length, color: '#f59e0b' },
+    { name: '较差 (<70%)', value: models.filter(m => ((m.qualityScore || m.quality_score) || 0) < 0.7).length, color: '#ef4444' },
   ]
 
   // 输入类型分布
@@ -31,7 +31,7 @@ export default function StatsPanel({ models }: StatsPanelProps) {
 
   // 生成趋势数据（按日期）
   const trendData = models.reduce((acc: any[], model) => {
-    const date = new Date(model.createdAt).toLocaleDateString()
+    const date = new Date(model.createdAt || model.created_at).toLocaleDateString()
     const existing = acc.find(item => item.date === date)
     if (existing) {
       existing.count += 1
@@ -61,7 +61,7 @@ export default function StatsPanel({ models }: StatsPanelProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-400 text-sm">平均质量</p>
-              <p className="text-2xl font-bold text-white">{(avgQuality * 100).toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-white">{(averageQuality * 100).toFixed(1)}%</p>
             </div>
             <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
               <Award className="w-6 h-6 text-green-400" />
@@ -228,7 +228,7 @@ export default function StatsPanel({ models }: StatsPanelProps) {
               </tr>
               <tr className="border-b border-white/5">
                 <td className="py-3 px-4 text-white">平均质量评分</td>
-                <td className="py-3 px-4 text-green-400 font-medium">{(avgQuality * 100).toFixed(2)}%</td>
+                <td className="py-3 px-4 text-green-400 font-medium">{(averageQuality * 100).toFixed(2)}%</td>
                 <td className="py-3 px-4 text-gray-400">所有模型的平均质量评分</td>
               </tr>
               <tr className="border-b border-white/5">

@@ -14,6 +14,11 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
   const [textInput, setTextInput] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [complexity, setComplexity] = useState('medium')
+  const [format, setFormat] = useState('gltf')
+  const [previewResult, setPreviewResult] = useState<any>(null)
+  const [isRefining, setIsRefining] = useState(false)
+  const [error, setError] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDrag = (e: React.DragEvent) => {
@@ -48,31 +53,36 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
   const handleGenerate = async () => {
     if (isGenerating) return
     
+    // 清除之前的错误
+    setError('')
+    
     if (inputMode === 'text' && !textInput.trim()) {
-      alert('请输入文本描述')
+      setError('请输入文本描述')
       return
     }
     
     if (inputMode === 'image' && !selectedFile) {
-      alert('请选择图片文件')
+      setError('请选择图片文件')
       return
     }
 
     setIsGenerating(true)
+    setPreviewResult(null)
 
     try {
       let response
       
       if (inputMode === 'text') {
-        response = await fetch('/api/generate/text', {
+        // 第一阶段：生成预览
+        response = await fetch('/api/generate/text/preview', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             text: textInput,
-            complexity: 'medium',
-            format: 'obj'
+            complexity: complexity,
+            format: format
           }),
         })
       } else {
@@ -92,26 +102,99 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
       const result = await response.json()
       
       if (result.success) {
-        const model = {
-          id: result.model_id,
-          modelUrl: result.model_url,
-          previewUrl: result.preview_url,
-          qualityScore: result.quality_score,
-          inputType: inputMode,
-          inputContent: inputMode === 'text' ? textInput : selectedFile!.name,
-          createdAt: new Date().toISOString(),
+        if (inputMode === 'text') {
+          // 保存预览结果，等待用户选择是否精细化
+          setPreviewResult(result)
+        } else {
+          // 图片生成直接完成
+          const model = {
+            id: result.model_id,
+            modelUrl: result.model_url,
+            previewUrl: result.thumbnail_url || result.preview_url,  // 使用缩略图作为预览
+            qualityScore: result.quality_score,
+            inputType: inputMode,
+            inputContent: selectedFile?.name || '',
+            createdAt: new Date().toISOString(),
+          }
+          
+          onModelGenerated(model)
         }
-        
-        onModelGenerated(model)
       } else {
         throw new Error(result.message || '生成失败')
       }
     } catch (error) {
       console.error('生成错误:', error)
-      alert('生成失败，请重试')
+      setError(error instanceof Error ? error.message : '生成失败，请重试')
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  const handleRefine = async () => {
+    if (!previewResult || isRefining) return
+
+    setIsRefining(true)
+
+    try {
+      const response = await fetch('/api/generate/text/refine', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          task_id: previewResult.task_id
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('精细化失败')
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        const model = {
+          id: result.model_id,
+          modelUrl: result.model_url,
+          previewUrl: result.thumbnail_url || result.preview_url,  // 使用缩略图作为预览
+          downloadUrls: result.download_urls,
+          qualityScore: result.quality_score,
+          inputType: inputMode,
+          inputContent: textInput,
+          createdAt: new Date().toISOString(),
+          stage: 'refined'
+        }
+        
+        onModelGenerated(model)
+        setPreviewResult(null)
+      } else {
+        throw new Error(result.message || '精细化失败')
+      }
+    } catch (error) {
+      console.error('精细化错误:', error)
+      setError(error instanceof Error ? error.message : '精细化失败，请重试')
+    } finally {
+      setIsRefining(false)
+    }
+  }
+
+  const handleUsePreview = () => {
+    if (!previewResult) return
+
+    const model = {
+      id: previewResult.task_id,
+      modelUrl: previewResult.preview_url,  // GLB模型文件用于3D显示
+      previewUrl: previewResult.thumbnail_url || previewResult.preview_url,  // 缩略图用于历史记录预览
+      qualityScore: 0.7, // 预览质量分数
+      inputType: inputMode,
+      inputContent: textInput,
+      createdAt: new Date().toISOString(),
+      stage: 'preview',
+      task_id: previewResult.task_id  // 添加task_id用于细化
+    }
+    
+    onModelGenerated(model)
+    setPreviewResult(null)
   }
 
   return (
@@ -242,7 +325,11 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-gray-400 mb-2">模型复杂度</label>
-              <select className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+              <select 
+                value={complexity}
+                onChange={(e) => setComplexity(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
                 <option value="low">低 (快速)</option>
                 <option value="medium">中等</option>
                 <option value="high">高 (精细)</option>
@@ -250,10 +337,15 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-2">输出格式</label>
-              <select className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+              <select 
+                value={format}
+                onChange={(e) => setFormat(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="gltf">GLTF (推荐)</option>
                 <option value="obj">OBJ</option>
                 <option value="stl">STL</option>
-                <option value="gltf">GLTF</option>
+                <option value="fbx">FBX</option>
               </select>
             </div>
           </div>
@@ -261,27 +353,77 @@ export default function InputPanel({ onModelGenerated, isGenerating, setIsGenera
 
         {/* 生成按钮 */}
         <div className="mt-auto">{/* 使用mt-auto将按钮推到底部 */}
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)}
-            className={`w-full py-3 px-6 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all duration-200 ${
-              isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)
-                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
-            }`}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>生成中...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                <span>开始生成</span>
-              </>
-            )}
-          </button>
+          {/* 错误提示 */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-600 rounded-lg">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+          
+          {!previewResult ? (
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)}
+              className={`w-full py-3 px-6 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all duration-200 ${
+                isGenerating || (inputMode === 'text' && !textInput.trim()) || (inputMode === 'image' && !selectedFile)
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
+              }`}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>生成预览中...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  <span>生成预览</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="space-y-4">
+              {/* 预览结果提示 */}
+              <div className="bg-green-900/30 border border-green-600 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-green-400 font-medium">预览生成完成</span>
+                </div>
+                <p className="text-sm text-gray-300">
+                  预览模型已生成，您可以选择直接使用预览版本，或进行精细化处理获得更高质量的模型。
+                </p>
+              </div>
+
+              {/* 预览操作按钮 */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleUsePreview}
+                  className="py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  使用预览版
+                </button>
+                <button
+                  onClick={handleRefine}
+                  disabled={isRefining}
+                  className={`py-2 px-4 rounded-lg font-medium transition-colors ${
+                    isRefining
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {isRefining ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>精细化中</span>
+                    </div>
+                  ) : (
+                    '精细化处理'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

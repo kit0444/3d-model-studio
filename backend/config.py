@@ -25,7 +25,7 @@ class Settings:
     
     # 3D模型生成API配置
     MESHY_API_KEY: Optional[str] = os.getenv("MESHY_API_KEY")
-    MESHY_API_URL: str = os.getenv("MESHY_API_URL", "https://api.meshy.ai")
+    MESHY_BASE_URL: str = os.getenv("MESHY_BASE_URL", "https://api.meshy.ai")
     
     # 文件存储配置
     MODEL_STORAGE_PATH: str = os.getenv("MODEL_STORAGE_PATH", "./storage/models")

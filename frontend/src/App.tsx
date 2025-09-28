@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, Wand2, History, BarChart3 } from 'lucide-react'
 import InputPanel from './components/InputPanel'
 import ModelViewer from './components/ModelViewer'
@@ -11,47 +11,57 @@ interface GeneratedModel {
   inputType: 'text' | 'image'
   createdAt: string
   modelUrl?: string
-  previewUrl?: string
+  previewUrl?: string  // 缩略图URL，用于历史记录预览
   qualityScore?: number
+  downloadUrls?: { [format: string]: string }
+  stage?: 'preview' | 'refined'
+  task_id?: string  // 添加task_id字段用于细化
 }
 
 function App() {
   const [activeTab, setActiveTab] = useState('generate')
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentModel, setCurrentModel] = useState<GeneratedModel | null>(null)
-  const [models, setModels] = useState<GeneratedModel[]>([
-    {
-      id: '1',
-      inputContent: '一只可爱的小猫咪，坐在草地上',
-      inputType: 'text',
-      createdAt: '2024-01-15T14:30:00Z',
-      modelUrl: '/api/models/cube.glb',
-      previewUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=200&h=200&fit=crop',
-      qualityScore: 0.92
-    },
-    {
-      id: '2',
-      inputContent: '现代风格的办公椅',
-      inputType: 'text',
-      createdAt: '2024-01-15T13:15:00Z',
-      modelUrl: '/api/models/pyramid.glb',
-      previewUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=200&h=200&fit=crop',
-      qualityScore: 0.88
-    },
-    {
-      id: '3',
-      inputContent: '科幻风格的宇宙飞船',
-      inputType: 'image',
-      createdAt: '2024-01-15T12:00:00Z',
-      modelUrl: '/api/models/sphere.glb',
-      previewUrl: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=200&h=200&fit=crop',
-      qualityScore: 0.95
+  const [models, setModels] = useState<GeneratedModel[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+
+  // 从后端获取历史数据
+  const loadHistory = async () => {
+    setIsLoadingHistory(true)
+    try {
+      const response = await fetch('/api/history')
+      if (response.ok) {
+        const data = await response.json()
+        // 后端直接返回数组，不是包装在success和models字段中
+        if (Array.isArray(data)) {
+          setModels(data)
+        }
+      } else {
+        console.error('Failed to load history:', response.statusText)
+      }
+    } catch (error) {
+      console.error('Error loading history:', error)
+    } finally {
+      setIsLoadingHistory(false)
     }
-  ])
+  }
+
+  // 组件挂载时加载历史数据
+  useEffect(() => {
+    loadHistory()
+  }, [])
 
   const handleModelGenerated = (model: GeneratedModel) => {
     setModels(prev => [model, ...prev])
     setCurrentModel(model)
+  }
+
+  const handleModelRefined = (refinedModel: GeneratedModel) => {
+    // 更新模型列表，替换原有的预览版本
+    setModels(prev => prev.map(m => 
+      m.id === refinedModel.id ? refinedModel : m
+    ))
+    setCurrentModel(refinedModel)
   }
 
   const handleModelSelect = (model: GeneratedModel) => {
@@ -115,11 +125,11 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex h-[calc(100vh-120px)]">
+      <main className="flex flex-col lg:flex-row h-[calc(100vh-120px)]">
         {activeTab === 'generate' && (
           <>
-            {/* Left Panel - Input (30% width) */}
-            <div className="w-[30%] min-w-[350px] bg-gray-900 border-r border-gray-700 p-6 overflow-y-auto">
+            {/* Left Panel - Input */}
+            <div className="w-full lg:w-[30%] lg:min-w-[350px] bg-gray-900 border-b lg:border-b-0 lg:border-r border-gray-700 p-4 lg:p-6 overflow-y-auto">
               <InputPanel 
                 onModelGenerated={handleModelGenerated} 
                 isGenerating={isGenerating} 
@@ -127,21 +137,30 @@ function App() {
               />
             </div>
             
-            {/* Right Panel - Model Viewer (70% width) */}
-            <div className="flex-1 bg-gray-900 border-r border-gray-700 p-6 overflow-y-auto">
-              <ModelViewer model={currentModel} isLoading={isGenerating} />
+            {/* Right Panel - Model Viewer */}
+            <div className="flex-1 bg-gray-900 border-r border-gray-700 p-4 lg:p-6 overflow-y-auto">
+              <ModelViewer 
+                model={currentModel} 
+                isLoading={isGenerating} 
+                onModelRefined={handleModelRefined}
+              />
             </div>
           </>
         )}
 
         {activeTab === 'history' && (
-          <div className="w-full p-6 overflow-y-auto">
-            <HistoryPanel models={models} onModelSelect={handleModelSelect} />
+          <div className="w-full p-4 lg:p-6 overflow-y-auto">
+            <HistoryPanel 
+              models={models} 
+              onModelSelect={handleModelSelect}
+              isLoading={isLoadingHistory}
+              onRefresh={loadHistory}
+            />
           </div>
         )}
 
         {activeTab === 'stats' && (
-          <div className="w-full p-6 overflow-y-auto">
+          <div className="w-full p-4 lg:p-6 overflow-y-auto">
             <StatsPanel models={models} />
           </div>
         )}

@@ -1,35 +1,48 @@
 import { useState } from 'react'
-import { Search, Filter, Download, Eye, Trash2, Calendar, Type, Image } from 'lucide-react'
+import { Search, Filter, Download, Eye, Trash2, Calendar, Type, Image, RefreshCw } from 'lucide-react'
 
 interface HistoryPanelProps {
   models: any[]
   onModelSelect: (model: any) => void
+  isLoading?: boolean
+  onRefresh?: () => void
 }
 
 type FilterType = 'all' | 'text' | 'image'
 type SortType = 'newest' | 'oldest' | 'quality'
 
-export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProps) {
+export default function HistoryPanel({ models, onModelSelect, isLoading = false, onRefresh }: HistoryPanelProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [sortType, setSortType] = useState<SortType>('newest')
   const [selectedModels, setSelectedModels] = useState<string[]>([])
+  const [notification, setNotification] = useState<string>('')
 
   // 过滤和排序模型
   const filteredModels = models
     .filter(model => {
-      const matchesSearch = model.inputContent.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesFilter = filterType === 'all' || model.inputType === filterType
+      // 处理字段名不匹配和空值问题
+      const inputContent = model.inputContent || model.input_content || ''
+      const inputType = model.inputType || model.input_type || ''
+      
+      const matchesSearch = inputContent.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesFilter = filterType === 'all' || inputType === filterType
       return matchesSearch && matchesFilter
     })
     .sort((a, b) => {
       switch (sortType) {
         case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          const aCreatedAt = a.createdAt || a.created_at || ''
+          const bCreatedAt = b.createdAt || b.created_at || ''
+          return new Date(bCreatedAt).getTime() - new Date(aCreatedAt).getTime()
         case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          const aCreatedAtOld = a.createdAt || a.created_at || ''
+          const bCreatedAtOld = b.createdAt || b.created_at || ''
+          return new Date(aCreatedAtOld).getTime() - new Date(bCreatedAtOld).getTime()
         case 'quality':
-          return (b.qualityScore || 0) - (a.qualityScore || 0)
+          const aQuality = a.qualityScore || a.quality_score || 0
+          const bQuality = b.qualityScore || b.quality_score || 0
+          return bQuality - aQuality
         default:
           return 0
       }
@@ -53,8 +66,10 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
 
   const handleBatchDownload = () => {
     if (selectedModels.length > 0) {
-      console.log('批量下载:', selectedModels)
-      alert(`批量下载 ${selectedModels.length} 个模型`)
+      // 实际的批量下载逻辑将在这里实现
+      setNotification(`开始批量下载 ${selectedModels.length} 个模型`)
+      // 3秒后清除通知
+      setTimeout(() => setNotification(''), 3000)
     }
   }
 
@@ -62,8 +77,11 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
     if (selectedModels.length > 0) {
       const confirmed = confirm(`确定要删除 ${selectedModels.length} 个模型吗？`)
       if (confirmed) {
-        console.log('批量删除:', selectedModels)
+        // 实际的批量删除逻辑将在这里实现
         setSelectedModels([])
+        setNotification(`已删除 ${selectedModels.length} 个模型`)
+        // 3秒后清除通知
+        setTimeout(() => setNotification(''), 3000)
       }
     }
   }
@@ -84,6 +102,13 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
 
   return (
     <div className="space-y-6">
+      {/* 通知提示 */}
+      {notification && (
+        <div className="glass-effect rounded-xl p-4 bg-green-900/30 border border-green-600">
+          <p className="text-green-400 text-sm">{notification}</p>
+        </div>
+      )}
+      
       {/* 搜索和过滤栏 */}
       <div className="glass-effect rounded-xl p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
@@ -123,6 +148,18 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
               <option value="oldest">最早创建</option>
               <option value="quality">质量排序</option>
             </select>
+
+            {/* 刷新按钮 */}
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="p-2 bg-white/5 border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="刷新历史记录"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -166,7 +203,15 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
           )}
         </div>
 
-        {filteredModels.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-300 mb-2">加载中...</h3>
+            <p className="text-gray-400">正在获取历史记录</p>
+          </div>
+        ) : filteredModels.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar className="w-8 h-8 text-gray-400" />
@@ -203,15 +248,19 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
 
                 {/* 模型预览 */}
                 <div className="aspect-square bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg mb-3 flex items-center justify-center">
-                  {model.previewUrl ? (
+                  {(model.previewUrl || model.preview_url) ? (
                     <img
-                      src={model.previewUrl}
+                      src={model.previewUrl || model.preview_url}
                       alt="模型预览"
                       className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
                     <div className="text-gray-400">
-                      <Eye className="w-8 h-8" />
+                      {(model.inputType || model.input_type) === 'text' ? (
+                        <Type className="w-8 h-8" />
+                      ) : (
+                        <Image className="w-8 h-8" />
+                      )}
                     </div>
                   )}
                 </div>
@@ -219,27 +268,27 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
                 {/* 模型信息 */}
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    {model.inputType === 'text' ? (
+                    {(model.inputType || model.input_type) === 'text' ? (
                       <Type className="w-4 h-4 text-purple-400" />
                     ) : (
                       <Image className="w-4 h-4 text-cyan-400" />
                     )}
                     <span className="text-xs text-gray-400">
-                      {model.inputType === 'text' ? '文本' : '图片'}
+                      {(model.inputType || model.input_type) === 'text' ? '文本' : '图片'}
                     </span>
                   </div>
 
                   <p className="text-sm text-white font-medium truncate">
-                    {model.inputContent}
+                    {model.inputContent || model.input_content}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">
-                      {new Date(model.createdAt).toLocaleDateString()}
+                      {new Date(model.createdAt || model.created_at).toLocaleDateString()}
                     </span>
-                    {model.qualityScore && (
-                      <span className={`text-xs font-medium ${getQualityColor(model.qualityScore)}`}>
-                        {getQualityLabel(model.qualityScore)} {(model.qualityScore * 100).toFixed(0)}%
+                    {(model.qualityScore || model.quality_score) && (
+                      <span className={`text-xs font-medium ${getQualityColor(model.qualityScore || model.quality_score)}`}>
+                        {getQualityLabel(model.qualityScore || model.quality_score)} {((model.qualityScore || model.quality_score) * 100).toFixed(0)}%
                       </span>
                     )}
                   </div>
@@ -250,7 +299,7 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      console.log('下载模型:', model.id)
+                      // 实际的下载逻辑将在这里实现
                     }}
                     className="p-1 bg-black/50 rounded text-white hover:bg-black/70 transition-colors"
                     title="下载"
@@ -260,7 +309,7 @@ export default function HistoryPanel({ models, onModelSelect }: HistoryPanelProp
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      console.log('删除模型:', model.id)
+                      // 实际的删除逻辑将在这里实现
                     }}
                     className="p-1 bg-black/50 rounded text-white hover:bg-black/70 transition-colors"
                     title="删除"

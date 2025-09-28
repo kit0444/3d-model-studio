@@ -1,2 +1,35 @@
 backend/__pycache__/
 data/
+
+# 环境配置文件
+.env
+backend/.env
+frontend/.env
+
+# API密钥和敏感信息
+*.key
+*.pem
+config/secrets.json
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE配置
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 依赖和构建文件
+node_modules/
+dist/
+build/
+*.pyc
+__pycache__/
